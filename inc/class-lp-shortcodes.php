@@ -55,7 +55,6 @@ class LP_Shortcodes {
 							$redirect = add_query_arg( 'tab', 'courses', $redirect );
 						}
 						if ( $redirect && !learn_press_is_current_url( $redirect ) ) {
-							var_dump($redirect);
 							wp_redirect( $redirect );
 							die();
 						}
@@ -75,8 +74,11 @@ class LP_Shortcodes {
 						parse_str( $wp->matched_query, $query );
 					} else {
 						$query = $wp->query_vars;
+						if(!isset( $query['view'] ) && isset( $query['tab'] )){
+							$query['view'] = $query['tab'];
+						}
 					}
-					if ( !isset( $query['view'] ) && !isset( $query['tab'] )  ) {
+					if ( !isset( $query['view'] ) ) {
 						wp_redirect( learn_press_user_profile_link( $wp->query_vars['user'] ) );
 						die();
 					}

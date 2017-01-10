@@ -46,8 +46,16 @@ class LP_Shortcodes {
 				if ( empty( $wp->query_vars['user'] ) ) {
 					$current_user = wp_get_current_user();
 					if ( !empty( $current_user->user_login ) ) {
-						$redirect = learn_press_get_endpoint_url( '', $current_user->user_login, learn_press_get_page_link( 'profile' ) );
+						if ( get_option( 'permalink_structure' ) ) {
+							$redirect = learn_press_get_endpoint_url( '', $current_user->user_login, learn_press_get_page_link( 'profile' ) );
+						} else {
+							$redirect = learn_press_get_endpoint_url( 'user', $current_user->user_login, learn_press_get_page_link( 'profile' ) );
+						}
+						if(!isset($wp->query_var['view'])&&!isset($wp->query_var['tab'])){
+							$redirect = add_query_arg( 'tab', 'courses', $redirect );
+						}
 						if ( $redirect && !learn_press_is_current_url( $redirect ) ) {
+							var_dump($redirect);
 							wp_redirect( $redirect );
 							die();
 						}
@@ -63,8 +71,12 @@ class LP_Shortcodes {
 					}
 				} else {
 					$query = array();
-					parse_str( $wp->matched_query, $query );
-					if ( empty( $query['view'] ) ) {
+					if ( get_option( 'permalink_structure' ) ) {
+						parse_str( $wp->matched_query, $query );
+					} else {
+						$query = $wp->query_vars;
+					}
+					if ( !isset( $query['view'] ) && !isset( $query['tab'] )  ) {
 						wp_redirect( learn_press_user_profile_link( $wp->query_vars['user'] ) );
 						die();
 					}

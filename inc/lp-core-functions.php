@@ -12,6 +12,22 @@ if ( !defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly
 }
 
+function learn_press_add_query_vars_filter( $vars ){
+	global $wp, $wp_querry;
+	if( '' == get_option( 'permalink_structure' ) ) {
+		if( !in_array('tab', $vars ) ) {
+			$vars[] = 'tab';
+		}
+
+		if( !in_array('view', $vars ) ) {
+			$vars[] = 'view';
+		}
+	}
+	return $vars;
+}
+
+add_filter( 'query_vars', 'learn_press_add_query_vars_filter' );
+
 function learn_press_get_post() {
 	global $post;
 	$post_id = !empty( $post ) ? $post->ID : 0;
@@ -1788,7 +1804,7 @@ function learn_press_get_endpoint_url( $name, $value, $url ) {
 		$url = add_query_arg( $name, $value, $url );
 	}
 
-	return apply_filters( 'learn_press_get_endpoint_url', esc_url( $url ), $name, $value, $url );
+	return apply_filters( 'learn_press_get_endpoint_url', $url, $name, $value, $url );
 }
 
 function learn_press_add_endpoints() {

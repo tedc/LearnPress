@@ -196,7 +196,11 @@ function learn_press_get_current_url() {
  */
 function learn_press_is_current_url( $url ) {
 	$current_url = learn_press_get_current_url();
-	return ( $current_url && $url ) && strcmp( $current_url, learn_press_sanitize_url( $url ) ) == 0;
+	if(get_option( 'permalink_structure' )) {
+		return ( $current_url && $url ) && strcmp( $current_url, learn_press_sanitize_url( $url ) ) == 0;
+	} else {
+		return ( $current_url && $url ) && strcmp( $current_url, learn_press_sanitize_url( $url, false ) ) == 0;
+	}
 }
 
 /**

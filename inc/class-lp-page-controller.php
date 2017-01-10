@@ -33,7 +33,11 @@ class LP_Page_Controller {
 			return;
 		}
 		add_filter( 'template_include', array( $this, 'template_loader' ) );
-		add_action( 'pre_get_posts', array( $this, 'pre_get_posts' ), 10 );
+		if( get_option( 'permalink_structure' ) ) {
+			add_action( 'pre_get_posts', array( $this, 'pre_get_posts' ), 10 );
+		} else {
+			add_action( 'pre_get_posts', array( $this, 'pre_get_posts_plain' ), 10 );
+		}
 		//add_action( 'learn_press_before_template_part', array( $this, 'before_template_part' ), 10, 4 );
 		add_shortcode( 'learn_press_archive_course', array( $this, 'archive_content' ) );
 		add_filter( 'request', array( $this, 'remove_course_post_format' ), 1 );
@@ -363,6 +367,172 @@ class LP_Page_Controller {
 			$q->set( 'page', '' );
 			$q->set( 'pagename', '' );
 
+			$q->is_archive           = true;
+			$q->is_post_type_archive = true;
+			$q->is_singular          = false;
+			$q->is_page              = false;
+		}
+
+
+		if ( $q->is_home() && 'page' == get_option( 'show_on_front' ) && get_option( 'page_on_front' ) == learn_press_get_page_id( 'courses' ) ) {
+			$_query = wp_parse_args( $q->query );
+			if ( empty( $_query ) || !array_diff( array_keys( $_query ), array( 'preview', 'page', 'paged', 'cpage', 'orderby' ) ) ) {
+				$q->is_page = true;
+				$q->is_home = false;
+				$q->set( 'page_id', get_option( 'page_on_front' ) );
+				$q->set( 'post_type', 'lp_course' );
+			}
+
+		}
+
+		/**
+		 * If current page is used for courses page and set as home-page
+		 */
+		if ( $q->is_page() && 'page' == get_option( 'show_on_front' ) && $q->get( 'page_id' ) == learn_press_get_page_id( 'courses' ) && learn_press_get_page_id( 'courses' ) ) {
+
+			$q->set( 'post_type', 'lp_course' );
+			$q->set( 'page_id', '' );
+			if ( isset( $q->query['paged'] ) ) {
+				$q->set( 'paged', $q->query['paged'] );
+			}
+
+			global $wp_post_types;
+
+			$course_page                            = get_post( learn_press_get_page_id( 'courses' ) );
+			$this->queried_object                   = $course_page;
+			$wp_post_types['lp_course']->ID         = $course_page->ID;
+			$wp_post_types['lp_course']->post_title = $course_page->post_title;
+			$wp_post_types['lp_course']->post_name  = $course_page->post_name;
+			$wp_post_types['lp_course']->post_type  = $course_page->post_type;
+			$wp_post_types['lp_course']->ancestors  = get_ancestors( $course_page->ID, $course_page->post_type );
+
+			$q->is_singular          = false;
+			$q->is_post_type_archive = true;
+			$q->is_archive           = true;
+			$q->is_page              = true;
+
+		}
+
+		if ( ( learn_press_is_courses() || learn_press_is_course_category() ) && $limit = absint( LP()->settings->get( 'archive_course_limit' ) ) ) {
+			$q->set( 'posts_per_page', $limit );
+		}
+
+		add_action( 'pre_get_posts', array( $this, 'pre_get_posts' ), 10 );
+
+		return $q;
+	}
+	
+	/**
+	 * get courses when permalink is default plain
+	 * @global type $course
+	 * @global type $post
+	 * @global type $wp_post_types
+	 * @param type $q
+	 * @return type
+	 */
+	public function pre_get_posts_plain( $q ) {
+		if( get_option( 'permalink_structure' ) ) {
+			return $q;
+		}
+
+		global $course;
+
+		LP_Debug::instance()->add( $q, 'wp_query' );
+
+		// We only want to affect the main query and not in admin
+		if ( !$q->is_main_query() || is_admin() ) {
+			return $q;
+		}
+		remove_action( 'pre_get_posts', array( $this, 'pre_get_posts' ), 10 );
+
+		$this->queried_object = !empty( $q->queried_object_id ) ? $q->queried_object : false;
+
+		/**
+		 * If is single course content
+		 */
+		if ( $q->get( 'post_type' ) == 'lp_course' && is_single() ) {
+			global $post;
+
+			/**
+			 * Added in LP 2.0.5 to fix issue in some cases course become 404
+			 * including case course link is valid but it also get 404 if
+			 * plugin WPML is installed
+			 */
+			if ( !empty( $q->query_vars['p'] ) && LP_COURSE_CPT == get_post_type( $q->query_vars['p'] ) ) {
+				$post = get_post( $q->query_vars['p'] );
+			} else {
+				$course_name = $q->get( 'lp_course' );
+				$post        = learn_press_get_post_by_name( $course_name, 'lp_course', true );
+			}
+
+			if ( !$post ) {
+				LP_Debug::instance()->add( sprintf( '%s: File %s, line #%d', '404', __FILE__, __LINE__ ) );
+				learn_press_is_404();
+				return $q;
+			}
+			$course      = learn_press_get_course( $post->ID );
+			$item        = null;
+			$item_name   = null;
+			$item_object = null;
+
+			if ( $course ) {
+				LP()->global['course'] = $course;
+				if ( $item_name = $q->get( 'lesson' ) ) {
+					$item = learn_press_get_post_by_name( $item_name, 'lp_lesson', true );
+					if ( $item ) {
+						$item_object = LP_Lesson::get_lesson( $item->ID );
+					}
+				} elseif ( $item_name = $q->get( 'quiz' ) ) {
+					$item = learn_press_get_post_by_name( $item_name, 'lp_quiz', true );
+					if ( $item ) {
+						$quiz = LP_Quiz::get_quiz( $item->ID );
+						if ( $question_name = $q->get( 'question' ) ) {
+							$question = learn_press_get_post_by_name( $question_name, 'lp_question', true );
+							if ( !$question ) {
+								LP_Debug::instance()->add( sprintf( '%s: File %s, line #%d', '404', __FILE__, __LINE__ ) );
+								learn_press_is_404();
+							} elseif ( !$quiz->has_question( $question->ID ) ) {
+								LP_Debug::instance()->add( sprintf( '%s: File %s, line #%d', '404', __FILE__, __LINE__ ) );
+								learn_press_is_404();
+							} else {
+								LP()->global['quiz-question'] = $question;
+							}
+						}
+						$item_object = LP_Quiz::get_quiz( $item->ID );
+					}
+				}
+			}
+
+			if ( $item_name && !$item_object ) {
+				LP_Debug::instance()->add( sprintf( '%s: File %s, line #%d', '404', __FILE__, __LINE__ ) );
+				learn_press_is_404();
+			} elseif ( $item_object && !$course->has( 'item', $item_object->id ) ) {
+				LP_Debug::instance()->add( sprintf( '%s: File %s, line #%d', '404', __FILE__, __LINE__ ) );
+				learn_press_is_404();
+			} else {
+				LP()->global['course-item'] = $item_object;
+			}
+			return $q;
+		}
+		
+		/**
+		 * If current page is used for courses page
+		 */
+		if ( $q->is_main_query() && $q->is_page() && ( $q->queried_object_id == ( $page_id = learn_press_get_page_id( 'courses' ) ) && $page_id ) ) {
+			$q->set( 'post_type', 'lp_course' );
+			$q->set( 'page', '' );
+			$q->set( 'pagename', '' );
+
+			$q->is_archive           = true;
+			$q->is_post_type_archive = true;
+			$q->is_singular          = false;
+			$q->is_page              = false;
+			
+		} elseif( $q->is_main_query() && $q->is_page() && !$q->get_queried_object_id() && !$q->get_queried_object() && ( $q->query_vars['page_id'] == learn_press_get_page_id( 'courses' ))  ) {
+			$q->set( 'post_type', 'lp_course' );
+			$q->set( 'page', '' );
+			$q->set( 'page_id', '' );
+			$q->set( 'pagename', '' );
 			$q->is_archive           = true;
 			$q->is_post_type_archive = true;
 			$q->is_singular          = false;

@@ -948,6 +948,7 @@ abstract class LP_Abstract_Course {
 	public function get_item_link( $item_id ) {
 		static $item_links = array();
 		$key = $this->id . '-' . $item_id;
+		$permalink_str = get_option( 'permalink_structure' );
 		if ( empty( $item_links[$key] ) ) {
 			if ( !$this->has( 'item', $item_id ) ) {
 				return false;
@@ -958,7 +959,7 @@ abstract class LP_Abstract_Course {
             switch ( $item_type ) {
 				case 'lp_lesson':
 				case 'lp_quiz':
-					$permalink = trailingslashit( get_the_permalink( $this->id ) );
+					$permalink = !$permalink_str ? get_the_permalink( $this->id ) : trailingslashit( get_the_permalink( $this->id ) );
 					$post_name = get_post_field( 'post_name', $item_id );
 					$prefix    = preg_replace( '!^/!', '', trailingslashit( $post_types[$item_type]->rewrite['slug'] ) );//"{$item_id}-";
 
@@ -970,7 +971,7 @@ abstract class LP_Abstract_Course {
                     }
 					break;
 			}
-			$permalink        = trailingslashit( $permalink );
+			$permalink        = !$permalink_str ? $permalink : trailingslashit( $permalink );
 			$item_links[$key] = $permalink;
 		}
 		return apply_filters( 'learn_press_course_item_link', $item_links[$key], $item_id, $this );

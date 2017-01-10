@@ -1152,8 +1152,12 @@ function learn_press_template_redirect() {
 
 	// When default permalinks are enabled, redirect shop page to post type archive url
 	if ( !empty( $_GET['page_id'] ) && get_option( 'permalink_structure' ) == "" && $_GET['page_id'] == learn_press_get_page_id( 'courses' ) ) {
-		wp_safe_redirect( get_post_type_archive_link( 'lp_course' ) );
-		exit;
+		$current_url	= learn_press_get_current_url();
+		$redirect		= get_post_type_archive_link( 'lp_course' );
+		if( !learn_press_is_current_url( $redirect ) ) {
+			wp_safe_redirect( $redirect );
+			exit;
+		}
 	}
 }
 

@@ -44,8 +44,7 @@ class LP_Query {
 		remove_filter( 'do_parse_request', array( $this, 'get_current_quiz_question' ), 1010, 3 );
 		$course_type = 'lp_course';
 		$post_types  = get_post_types( '', 'objects' );
-//var_dump($post_types);
-//exit();
+
 		if ( empty( $post_types[$course_type] ) ) {
 			return;
 		}
@@ -227,8 +226,6 @@ class LP_Query {
 	function add_rewrite_rules() {
 
 		$rewrite_prefix = get_option( 'learn_press_permalink_structure' );
-//		var_dump($rewrite_prefix);
-//		exit();
 		// lesson
 		$course_type  = 'lp_course';
 		$post_types   = get_post_types( '', 'objects' );
@@ -240,16 +237,8 @@ class LP_Query {
 		}
 		$current_url  = learn_press_get_current_url();
 		$query_string = str_replace( trailingslashit( get_site_url() ), '', $current_url );
-//var_dump($query_string);
-//var_dump($course_type);
-//var_dump('^' . $slug . '(?:/' . $post_types['lp_lesson']->rewrite['slug'] . '/([^/]+))/?$');
-//exit();
+
 		if ( $has_category ) {
-			add_rewrite_rule(
-				'^lp-courses\/page\/(\d)\/?$',
-				'index.php?post_type=' . $course_type . '&paged=$matches[1]',
-				'top'
-			);
 			add_rewrite_rule(
 				'^' . $slug . '(?:/' . $post_types['lp_lesson']->rewrite['slug'] . '/([^/]+))/?$',
 				'index.php?' . $course_type . '=$matches[2]&course_category=$matches[1]&lesson=$matches[3]',
@@ -279,6 +268,20 @@ class LP_Query {
 				'index.php?page_id=' . $profile_id . '&user=$matches[1]&view=$matches[2]&id=$matches[3]&paged=$matches[4]',
 				'top'
 			);
+		}
+
+		if ( $course_page_id = learn_press_get_page_id( 'courses' ) ) {
+			add_rewrite_rule(
+				'^' . $rewrite_prefix . get_post_field( 'post_name', $course_page_id ) . '/page/([0-9]{1,})/?$',
+				'index.php?pagename=' . get_post_field( 'post_name', $course_page_id ) . '&page=$matches[1]',
+				'top'
+			);
+			/**
+			add_rewrite_rule(
+				'^' . $rewrite_prefix . get_post_field( 'post_name', $course_page_id ) . '/page/([0-9]{1,})/?$',
+				'index.php?page_id=' . $course_page_id . '&paged=$matches[1]',
+				'top'
+			);*/
 		}
 		do_action( 'learn_press_add_rewrite_rules' );
 		return;

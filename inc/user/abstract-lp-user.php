@@ -933,7 +933,6 @@ class LP_Abstract_User {
 		$course_id = $this->_get_course_id( $course_id );
 
 		$question_id = 0;
-		$cq_id = 0;
 		if ( $progress = $this->get_quiz_results( $quiz_id, $course_id ) ) {
 			if ( !empty( $progress->question ) ) {
 				$question_id = $progress->question;
@@ -948,17 +947,14 @@ class LP_Abstract_User {
 				if ( $questions ) {
 					$question    = reset( $questions );
 					$question_id = $question->ID;
-					if(!$cq_id){
-						$cq_id = $question_id;
-					}
 				}
 			}
 
 		}
-		$user       = learn_press_get_current_user();
-		$history = $user->get_quiz_results( $quiz_id, $course_id, true );
-		$current_question_id = !$history? $cq_id : learn_press_get_user_item_meta( $history->history_id, 'lp_current_question_after_close', true );
-		if ( !empty($current_question_id) ) {
+		$user                = learn_press_get_current_user();
+		$history             = $user->get_quiz_results( $quiz_id, $course_id, true );
+		$current_question_id = learn_press_get_user_item_meta( $history->history_id, 'lp_current_question_after_close', true );
+		if ( !empty( $current_question_id ) ) {
 			$question_id = $current_question_id;
 		}
 
@@ -1127,9 +1123,9 @@ class LP_Abstract_User {
 	/**
 	 * Return true if user can enroll a course
 	 *
-	 * @param int
+	 * @param $course_id
 	 *
-	 * @return bool
+	 * @return bool|string
 	 */
 	public function can_enroll_course( $course_id ) {
 		# condition
@@ -1143,6 +1139,8 @@ class LP_Abstract_User {
 			$enrollable = false;
 		} elseif ( !$course->is_required_enroll() ) {
 			$enrollable = false;
+		} elseif ( !$course->is_purchasable() ) {
+			$enrollable = 'enough';
 		} elseif ( $course->is_free() && $this->is_exists() ) {
 			$enrollable = true;
 		} elseif ( $course->is_purchasable() && ( $this->has_purchased_course( $course_id ) ) ) {
